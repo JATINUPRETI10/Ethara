@@ -95,3 +95,15 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
     next(error);
   }
 };
+
+export const getAllUsers = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const users = await prisma.user.findMany({
+      select: { id: true, email: true, name: true, role: true },
+      orderBy: { name: 'asc' },
+    });
+    res.status(200).json(users);
+  } catch (error) {
+    next(error);
+  }
+};

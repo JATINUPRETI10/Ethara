@@ -20,7 +20,29 @@ export default function Tasks() {
     description: '',
     projectId: '',
     priority: 'MEDIUM',
+    assignedToId: '',
   });
+  
+  const [projectMembers, setProjectMembers] = useState<any[]>([]);
+
+  // Fetch project members when a project is selected
+  useEffect(() => {
+    if (!newTask.projectId) {
+      setProjectMembers([]);
+      return;
+    }
+    
+    const fetchMembers = async () => {
+      try {
+        const { data } = await api.get(`/projects/${newTask.projectId}`);
+        setProjectMembers(data.members || []);
+      } catch (error) {
+        console.error('Error fetching project members:', error);
+      }
+    };
+    
+    fetchMembers();
+  }, [newTask.projectId]);
 
   const fetchTasks = async () => {
     try {
@@ -49,17 +71,18 @@ export default function Tasks() {
 
   useEffect(() => {
     fetchTasks();
-    if (user?.role === 'ADMIN') {
-       fetchProjects();
-    }
+    fetchProjects();
   }, [statusFilter, priorityFilter, user?.role]);
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post('/tasks', newTask);
+      const payload = { ...newTask };
+      if (!payload.assignedToId) delete (payload as any).assignedToId;
+      
+      await api.post('/tasks', payload);
       setIsModalOpen(false);
-      setNewTask({ title: '', description: '', projectId: '', priority: 'MEDIUM' });
+      setNewTask({ title: '', description: '', projectId: '', priority: 'MEDIUM', assignedToId: '' });
       fetchTasks();
     } catch (error) {
       console.error('Error creating task:', error);
@@ -272,6 +295,24 @@ export default function Tasks() {
                      <option value="MEDIUM">Medium</option>
                      <option value="HIGH">High</option>
                    </select>
+                 </div>
+                 
+                 <div>
+                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Assign To (Optional)</label>
+                   <select
+                     value={newTask.assignedToId}
+                     onChange={(e) => setNewTask({ ...newTask, assignedToId: e.target.value })}
+                     disabled={!newTask.projectId || projectMembers.length === 0}
+                     className="block w-full rounded-xl border-gray-200 bg-gray-50 shadow-sm focus:border-primary-500 focus:bg-white focus:ring-4 focus:ring-primary-500/10 sm:text-sm px-4 py-3 transition-all outline-none border disabled:opacity-50"
+                   >
+                     <option value="">Unassigned</option>
+                     {projectMembers.map((m) => (
+                        <option key={m.userId} value={m.userId}>{m.user.name}</option>
+                     ))}
+                   </select>
+                   {newTask.projectId && projectMembers.length === 1 && (
+                      <p className="text-xs text-amber-600 mt-1 font-medium">You are the only member of this project. Add members in the Projects screen first!</p>
+                   )}
                  </div>
                  <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
                    <button
